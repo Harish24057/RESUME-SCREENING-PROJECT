@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Resume Screening</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="card">
+        <h1>AI Resume Screening System</h1>
+        <p>Upload a job description and one or more resumes to rank them by relevance in real time.</p>
+
+        <form id="screening-form" enctype="multipart/form-data">
+          <label for="job_description">Job Description</label>
+          <textarea id="job_description" name="job_description" rows="8" placeholder="Paste the job description here..."></textarea>
+
+          <label for="resumes">Resumes</label>
+          <input id="resumes" name="resumes" type="file" multiple accept=".txt,.pdf,.docx" />
+
+          <button type="submit">Analyze Resumes</button>
+        </form>
+
+        <div id="status" class="status">Waiting for your input.</div>
+        <div id="results" class="results"></div>
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById('screening-form');
+      const status = document.getElementById('status');
+      const results = document.getElementById('results');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        status.textContent = 'Analyzing resumes...';
+        results.innerHTML = '';
+
+        const formData = new FormData(form);
+        const response = await fetch('/analyze', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          status.textContent = payload.error || 'Something went wrong.';
+          return;
+        }
+
+        const items = payload.results || [];
+        if (!items.length) {
+          status.textContent = 'No resumes were analyzed.';
+          return;
+        }
+
+        status.textContent = `Screened ${items.length} resume(s).`;
+        results.innerHTML = items.map((item, index) => `
+          <article class="result-item">
+            <div class="result-header">
+              <h3>${index + 1}. ${item.name}</h3>
+              <span class="score">${item.score}/100</span>
+            </div>
+            <p>${item.summary}</p>
+            <div class="chips">
+              <strong>Matched skills:</strong>
+              ${item.matched_skills.length ? item.matched_skills.map((skill) => `<span class="chip">${skill}</span>`).join('') : '<span class="chip">None detected</span>'}
+            </div>
+            <div class="chips">
+              <strong>Gaps:</strong>
+              ${item.gaps.length ? item.gaps.map((gap) => `<span class="chip gap">${gap}</span>`).join('') : '<span class="chip">None</span>'}
+            </div>
+          </article>
+        `).join('');
+      });
+    </script>
+  </body>
+</html>
